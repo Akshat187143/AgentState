@@ -40,13 +40,22 @@ def query_genie(question: str, config: RunnableConfig) -> str:
     thread_id = (config.get("configurable") or {}).get("thread_id", "default")
     client = _client()
 
-    conversation_id = _genie_conversations.get(thread_id)
-    if conversation_id is None:
-        message = client.genie.start_conversation_and_wait(space_id, question)
-        _genie_conversations[thread_id] = message.conversation_id
-    else:
-        message = client.genie.create_message_and_wait(
-            space_id, conversation_id, question
+    try:
+        conversation_id = _genie_conversations.get(thread_id)
+        if conversation_id is None:
+            message = client.genie.start_conversation_and_wait(space_id, question)
+            _genie_conversations[thread_id] = message.conversation_id
+        else:
+            message = client.genie.create_message_and_wait(
+                space_id, conversation_id, question
+            )
+    except Exception as exc:  # noqa: BLE001 - degrade gracefully, never crash the chat
+        # Drop the possibly-poisoned conversation so the next turn starts fresh.
+        _genie_conversations.pop(thread_id, None)
+        return (
+            "Genie could not answer that question. It may fall outside this Genie "
+            "space's data (for example asking about sales when the space only covers "
+            f"the product catalog), or the query failed to run. Details: {exc}"
         )
 
     return _render_message(client, space_id, message)
