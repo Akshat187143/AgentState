@@ -6,11 +6,14 @@ the answer. The agent calls this as a tool; Genie enforces Unity Catalog governa
 """
 
 import os
+import logging
 from functools import lru_cache
 
 from databricks.sdk import WorkspaceClient
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
+
+logger = logging.getLogger(__name__)
 
 # Cap how many result rows we feed back into the LLM context.
 _MAX_ROWS = 20
@@ -50,6 +53,7 @@ def query_genie(question: str, config: RunnableConfig) -> str:
                 space_id, conversation_id, question
             )
     except Exception as exc:  # noqa: BLE001 - degrade gracefully, never crash the chat
+        logger.warning("Genie query failed (space=%s): %r", space_id, exc)
         # Drop the possibly-poisoned conversation so the next turn starts fresh.
         _genie_conversations.pop(thread_id, None)
         return (
