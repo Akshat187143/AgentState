@@ -14,7 +14,7 @@ env:
   # Databricks Genie space governing the trusted Gold-layer (Unity Catalog) data
   # the analytics agent may query.
   - name: GENIE_SPACE_ID
-    value: "01f19549a6231569888f58138a01ab6c"
+    value: "01f1962f60ee1de78df62117597bc1e3"
   # Optional: pin the agent's reasoning LLM to a specific serving endpoint. Leave
   # empty to auto-discover a chat-capable Foundation Model endpoint in the workspace.
   - name: DATABRICKS_LLM_ENDPOINT
