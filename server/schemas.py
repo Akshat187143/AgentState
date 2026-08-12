@@ -75,3 +75,13 @@ class StockRequestResponse(BaseModel):
     ]
     line_count: Annotated[int, Field(gt=0)]
     total_qty: Annotated[int, Field(gt=0)]
+
+
+class ChatRequest(BaseModel):
+    conversation_id: Annotated[int | None, Field(gt=0)] = None
+    message: Annotated[str, Field(min_length=1, max_length=2000)]
+
+
+class ChatResponse(BaseModel):
+    conversation_id: Annotated[int, Field(gt=0)]
+    reply: Annotated[str, Field(min_length=1)]

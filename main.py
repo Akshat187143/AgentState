@@ -3,6 +3,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from server.routers import chat
 from server.routers import dashboard
 from server.routers import request
 from server import database
@@ -18,5 +19,6 @@ def health():
 
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(request.router , prefix="/api")
+app.include_router(chat.router, prefix="/api")
 # Must stay last: this claims every path the API routes above did not.
 app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")

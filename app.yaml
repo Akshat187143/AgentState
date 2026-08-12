@@ -11,5 +11,13 @@ env:
     value: "databricks_postgres"
   - name: PGSSLMODE
     value: "require"
+  # Databricks Genie space governing the trusted Gold-layer (Unity Catalog) data
+  # the analytics agent may query.
+  - name: GENIE_SPACE_ID
+    value: "01f19549a6231569888f58138a01ab6c"
+  # Optional: pin the agent's reasoning LLM to a specific serving endpoint. Leave
+  # empty to auto-discover a chat-capable Foundation Model endpoint in the workspace.
+  - name: DATABRICKS_LLM_ENDPOINT
+    value: ""
   # PGUSER is injected by the attached Lakebase resource as the app's service
   # principal. Set it here only if that resource is not configured.

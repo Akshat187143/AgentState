@@ -14,7 +14,7 @@ const USE_MOCK = false
 const USE_MOCK_REQUESTS = false
 
 // Flip to false once POST /api/chat exists.
-const USE_MOCK_CHAT = true
+const USE_MOCK_CHAT = false
 
 export async function fetchDashboard(): Promise<DashboardResponse> {
   if (USE_MOCK) {
