@@ -7,7 +7,7 @@ through the LangGraph PostgresSaver, so each thread resumes exactly where it lef
 """
 
 import os
-import threading
+from functools import lru_cache
 from typing import Annotated, TypedDict
 
 from langchain_core.messages import AnyMessage, HumanMessage, SystemMessage
@@ -44,14 +44,19 @@ _CHAT_TASK = "llm/v1/chat"
 
 _TOOLS = [query_genie]
 
-_agent = None
-_lock = threading.Lock()
-
 
 class AgentState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
 
 
+@lru_cache(maxsize=1)
+def _workspace():
+    from databricks.sdk import WorkspaceClient
+
+    return WorkspaceClient()
+
+
+@lru_cache(maxsize=1)
 def _resolve_endpoint() -> str:
     """Return the LLM serving endpoint to use.
 
@@ -62,10 +67,8 @@ def _resolve_endpoint() -> str:
     if configured:
         return configured
 
-    from databricks.sdk import WorkspaceClient
-
     available: list[str] = []
-    for endpoint in WorkspaceClient().serving_endpoints.list():
+    for endpoint in _workspace().serving_endpoints.list():
         name = endpoint.name or ""
         task = getattr(endpoint, "task", None)
         if task == _CHAT_TASK or name.startswith("databricks-"):
@@ -84,11 +87,25 @@ def _resolve_endpoint() -> str:
     )
 
 
-def _build_agent():
-    from databricks_langchain import ChatDatabricks
+def _build_llm():
+    from langchain_openai import ChatOpenAI
 
-    llm = ChatDatabricks(endpoint=_resolve_endpoint())
-    llm_with_tools = llm.bind_tools(_TOOLS)
+    workspace = _workspace()
+    base_url = f"{workspace.config.host.rstrip('/')}/serving-endpoints"
+    # Databricks serving endpoints speak the OpenAI chat API. Mint a fresh bearer
+    # token (the SDK caches/rotates it) so long-running Apps never send a stale one.
+    token = workspace.config.authenticate()["Authorization"].split(" ", 1)[1]
+
+    return ChatOpenAI(
+        model=_resolve_endpoint(),
+        base_url=base_url,
+        api_key=token,
+        temperature=0,
+    )
+
+
+def _build_agent():
+    llm_with_tools = _build_llm().bind_tools(_TOOLS)
 
     def agent_node(state: AgentState) -> dict:
         response = llm_with_tools.invoke(
@@ -106,19 +123,13 @@ def _build_agent():
     return graph.compile(checkpointer=get_checkpointer())
 
 
-def get_agent():
-    """Lazily compile the agent once and reuse it across requests."""
-    global _agent
-    if _agent is None:
-        with _lock:
-            if _agent is None:
-                _agent = _build_agent()
-    return _agent
-
-
 def run_turn(thread_id: str, message: str) -> str:
-    """Run one conversational turn, resuming any prior state for ``thread_id``."""
-    agent = get_agent()
+    """Run one conversational turn, resuming any prior state for ``thread_id``.
+
+    The graph is rebuilt per turn (cheap) with a freshly minted token; the
+    expensive Lakebase checkpointer is cached and shared across turns.
+    """
+    agent = _build_agent()
     config = {"configurable": {"thread_id": thread_id}}
     result = agent.invoke({"messages": [HumanMessage(content=message)]}, config)
 
