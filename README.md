@@ -1,7 +1,7 @@
 ---
 title: Shop Owner Assistant
 description: A Databricks App that gives a small retail shop owner a live view of stock, sales, and expiry, plus an assistant that explains what the numbers mean and proposes restocking actions for human approval.
-author: Manyat Jindal
+author: Manyat Jindal and Akshat Agrawal
 ms.date: 2026-08-13
 ms.topic: overview
 keywords:
